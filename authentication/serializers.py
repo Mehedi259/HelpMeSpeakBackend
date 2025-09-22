@@ -8,6 +8,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)
     send_verification_otp = serializers.BooleanField(default=True)
+    full_name = serializers.CharField(required=False, allow_blank=True)  # ✅ Optional
 
     class Meta:
         model = User
@@ -23,14 +24,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        validated_data.pop('password_confirm')
-        validated_data.pop('send_verification_otp')
+        validated_data.pop('password_confirm', None)
+        validated_data.pop('send_verification_otp', None)
+        full_name = validated_data.get('full_name', '')  # Default empty string
         user = User.objects.create_user(
             username=validated_data['email'],
             email=validated_data['email'],
             password=validated_data['password'],
-            full_name=validated_data['full_name'],
-            role='user'
+            full_name=full_name,
+            role='user'  # ✅ ইউজার ডিফল্ট role
         )
         return user
 
