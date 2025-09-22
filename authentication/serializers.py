@@ -41,7 +41,7 @@ class SendOTPSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6, min_length=6)
-    purpose = serializers.ChoiceField(choices=['email_verification', 'password_reset', 'two_factor'])
+    # purpose = serializers.ChoiceField(choices=['email_verification', 'password_reset', 'two_factor'])
 
 class Verify2FASerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6, min_length=6)
