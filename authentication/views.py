@@ -285,10 +285,23 @@ class LoginView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data['email']
             password = serializer.validated_data['password']
+            remember_me = serializer.validated_data.get('remember_me', False)
+
             user = User.objects.filter(email=email).first()
+
             if user and user.check_password(password):
+                # ✅ Block admin login from user portal
+                if user.role == 'admin':
+                    return Response(
+                        {"detail": "Admin cannot login from user portal."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+                # ✅ Email verification check
                 if not user.is_email_verified:
                     return Response({"detail": "Email not verified."}, status=status.HTTP_403_FORBIDDEN)
+
+                # ✅ 2FA check
                 if user.is_2fa_enabled:
                     code = user.generate_email_verification_code()
                     send_mail(
@@ -302,23 +315,31 @@ class LoginView(APIView):
                         "detail": "2FA required. OTP sent to email.",
                         "next_step": "verify_2fa_otp"
                     }, status=status.HTTP_206_PARTIAL_CONTENT)
+
+                # ✅ Generate JWT tokens
                 refresh = RefreshToken.for_user(user)
-                lifetime = timedelta(days=30) if serializer.validated_data['remember_me'] else timedelta(days=7)
+                lifetime = timedelta(days=30) if remember_me else timedelta(days=7)
                 refresh.set_exp(lifetime=lifetime)
+
                 refresh_token_str = str(refresh)
                 access_token_str = str(refresh.access_token)
+
                 refresh_payload = jwt.decode(refresh_token_str, settings.SECRET_KEY, algorithms=["HS256"])
-                access_expires_in = 900
+                access_expires_in = 900  # 15 মিনিট
                 refresh_expires_in = int(refresh_payload['exp'] - refresh_payload['iat'])
+
+                # ✅ Save token in DB
                 Token.objects.create(
                     user=user,
                     email=user.email,
                     refresh_token=refresh_token_str,
                     access_token=access_token_str,
                     refresh_token_expires_at=timezone.now() + timedelta(seconds=refresh_expires_in),
-                    access_token_expires_at=timezone.now() + timedelta(minutes=15)
+                    access_token_expires_at=timezone.now() + timedelta(seconds=access_expires_in)
                 )
+
                 logger.info(f"User logged in: {user.email}")
+
                 return Response({
                     "access_token": access_token_str,
                     "access_token_expires_in": access_expires_in,
@@ -333,7 +354,9 @@ class LoginView(APIView):
                         "role": user.role
                     }
                 }, status=status.HTTP_200_OK)
+
             return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class RefreshTokenView(APIView):
