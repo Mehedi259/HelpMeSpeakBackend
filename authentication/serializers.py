@@ -25,14 +25,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         validated_data.pop('send_verification_otp')
+        full_name = validated_data.get('full_name', '')  # যদি না আসে, খালি string ব্যবহার
         user = User.objects.create_user(
             username=validated_data['email'],
             email=validated_data['email'],
             password=validated_data['password'],
-            full_name=validated_data['full_name'],
+            full_name=full_name,
             role='user'
         )
         return user
+
 
 class SendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
