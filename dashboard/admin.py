@@ -1,15 +1,22 @@
-# dashboard/admin.py
 from django.contrib import admin
 from .models import Category, Phrase
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'icon']  # অ্যাডমিনে ক্যাটাগরির তালিকায় এই ফিল্ডগুলো দেখাবে
-    search_fields = ['name']  # নাম দিয়ে সার্চ করার সুবিধা
-    list_filter = ['name']  # নাম দিয়ে ফিল্টার করার সুবিধা
+    list_display = ['id', 'name', 'icon']
+    search_fields = ['name']
+    list_filter = ['name']
 
 @admin.register(Phrase)
 class PhraseAdmin(admin.ModelAdmin):
-    list_display = ['id', 'english_text', 'french_text', 'category']  # ফ্রেজের তালিকায় এই ফিল্ডগুলো দেখাবে
-    search_fields = ['english_text', 'french_text']  # ইংরেজি বা ফ্রেঞ্চ টেক্সট দিয়ে সার্চ
-    list_filter = ['category']  # ক্যাটাগরি দিয়ে ফিল্টার
+    list_display = ['id', 'get_english', 'get_bangla', 'category']
+    search_fields = ['translated_text__english', 'translated_text__bangla']
+    list_filter = ['category']
+
+    def get_english(self, obj):
+        return obj.translated_text.get('english', 'N/A')
+    get_english.short_description = 'English'
+
+    def get_bangla(self, obj):
+        return obj.translated_text.get('bangla', 'N/A')
+    get_bangla.short_description = 'Bangla'

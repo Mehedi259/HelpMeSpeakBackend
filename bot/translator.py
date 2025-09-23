@@ -222,19 +222,12 @@ class AITranslatorChatbot:
 
         # Patterns to match
         patterns = [
-            # e.g., "Text in Spanish", "Text en Español"
             rf'(.+?)\s+(?:{all_prepositions})\s+({language_pattern})\b(?:\.|!|\?|$)',
-            # e.g., "Translate text in Spanish", "Translate text en Español"
             rf'translate\s+(.+?)\s+(?:{all_prepositions})\s+({language_pattern})\b(?:\.|!|\?|$)',
-            # e.g., "Say hello in Spanish"
             rf'say\s+(.+?)\s+(?:{all_prepositions})\s+({language_pattern})\b(?:\.|!|\?|$)',
-            # e.g., "Convert text to Spanish"
             rf'convert\s+(.+?)\s+(?:{all_prepositions})\s+({language_pattern})\b(?:\.|!|\?|$)',
-            # e.g., "How do you say hi in Spanish"
             rf'how\s+do\s+you\s+say\s+(.+?)\s+(?:{all_prepositions})\s+({language_pattern})\b(?:\.|!|\?|$)',
-            # e.g., "What is hello in Spanish"
             rf'what\s+is\s+(.+?)\s+(?:{all_prepositions})\s+({language_pattern})\b(?:\.|!|\?|$)',
-            # e.g., "Text Spanish", "Text español"
             rf'(.+?)\s+({language_pattern})\b(?:\.|!|\?|$)'  # No preposition
         ]
 
@@ -269,3 +262,51 @@ class AITranslatorChatbot:
             result = self.translate_text(text, lang_code, source_language)
             translations[lang_code] = result
         return translations
+
+    def handle_translation_request(self, user_input: str) -> Dict:
+        """Handle translation request, ensuring target language name is not translated and is hidden in output"""
+        parse_result = self.parse_translation_request(user_input)
+        
+        if not parse_result['is_translation_request']:
+            return {
+                'success': False,
+                'translated_text': None,
+                'conversational_response': parse_result['conversational_response'],
+                'target_language': None
+            }
+        
+        text_to_translate = parse_result['text']
+        target_language = parse_result['target_language']
+        
+        # Handle translation to all languages
+        if target_language == 'all':
+            translations = self.translate_to_all_languages(text_to_translate)
+            result = {
+                'success': True,
+                'translated_text': {
+                    self.supported_languages.get(lang_code, lang_code): data['translated_text'] 
+                    for lang_code, data in translations.items() if data['success']
+                },
+                'conversational_response': f"Translated '{text_to_translate}' to all supported languages.",
+                'target_language': 'all'
+            }
+            return result
+        
+        # Handle translation to a single language
+        translation_result = self.translate_text(text_to_translate, target_language)
+        
+        if not translation_result['success']:
+            return {
+                'success': False,
+                'translated_text': None,
+                'conversational_response': translation_result['error'],
+                'target_language': target_language
+            }
+        
+        # Return only the translated text, hiding the target language
+        return {
+            'success': True,
+            'translated_text': translation_result['translated_text'],
+            'conversational_response': translation_result['translated_text'],  # Only the translated text is shown
+            'target_language': target_language  # Kept for internal use but not shown in conversational_response
+        }

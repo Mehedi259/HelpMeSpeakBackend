@@ -13,23 +13,28 @@ class ChatView(APIView):
         serializer = ChatRequestSerializer(data=request.data)
         if serializer.is_valid():
             user_input = serializer.validated_data['input']
-            parsed_request = self.chatbot.parse_translation_request(user_input)
+            # Use handle_translation_request to process the input
+            response_data = self.chatbot.handle_translation_request(user_input)
             
-            response_data = parsed_request.copy()
-            if parsed_request['is_translation_request']:
-                if parsed_request['target_language'] == 'all':
-                    translations = self.chatbot.translate_to_all_languages(parsed_request['text'])
-                    response_data = {'translations': translations}
-                    response_serializer = AllLanguagesResponseSerializer(response_data)
-                else:
-                    translation_result = self.chatbot.translate_text(
-                        parsed_request['text'],
-                        parsed_request['target_language']
-                    )
-                    response_data['translation_result'] = translation_result
-                    response_serializer = ChatResponseSerializer(response_data)
+            if not response_data['success']:
+                response_serializer = ChatResponseSerializer({
+                    'is_translation_request': False,
+                    'translated_text': None,
+                    'conversational_response': response_data['conversational_response']
+                })
+                return Response(response_serializer.data, status=status.HTTP_200_OK)
+            
+            if response_data['target_language'] == 'all':
+                response_serializer = AllLanguagesResponseSerializer({
+                    'translated_text': response_data['translated_text'],
+                    'conversational_response': response_data['conversational_response']
+                })
             else:
-                response_serializer = ChatResponseSerializer(response_data)
+                response_serializer = ChatResponseSerializer({
+                    'is_translation_request': True,
+                    'translated_text': response_data['translated_text'],
+                    'conversational_response': response_data['conversational_response']  # Only translated text
+                })
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
