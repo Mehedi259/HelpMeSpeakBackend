@@ -36,7 +36,6 @@ ALLOWED_HOSTS = [
     "127.0.0.1",       # লোকালহোস্ট
     "localhost",       # লোকালহোস্টের অন্য রূপ
     "10.10.7.116"      # আপনার লোকাল নেটওয়ার্ক আইপি (আপনার ইন্টারফেস অনুযায়ী)
-    'helpmespeak.onrender.com',
 ]
 
 GOOGLE_API_KEY = env("GOOGLE_API_KEY", default="")

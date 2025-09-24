@@ -4,10 +4,11 @@ from .models import Category, Phrase
 class PhraseLanguageSerializer(serializers.ModelSerializer):
     lang1 = serializers.SerializerMethodField()
     lang2 = serializers.SerializerMethodField()
+    category = serializers.CharField(source='category.name', read_only=True)
 
     class Meta:
         model = Phrase
-        fields = ['id', 'lang1', 'lang2']
+        fields = ['id', 'lang1', 'lang2', 'category']
 
     def __init__(self, *args, **kwargs):
         self.lang1_key = kwargs.pop('lang1_key', 'lan1')
@@ -27,7 +28,8 @@ class PhraseLanguageSerializer(serializers.ModelSerializer):
         return {
             'id': representation['id'],
             self.lang1_key: representation['lang1'],
-            self.lang2_key: representation['lang2']
+            self.lang2_key: representation['lang2'],
+            'category': representation['category']
         }
 
 class PhraseSerializer(serializers.ModelSerializer):
