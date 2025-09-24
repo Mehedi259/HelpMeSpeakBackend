@@ -13,7 +13,6 @@ class ChatView(APIView):
         serializer = ChatRequestSerializer(data=request.data)
         if serializer.is_valid():
             user_input = serializer.validated_data['input']
-            # Use handle_translation_request to process the input
             response_data = self.chatbot.handle_translation_request(user_input)
             
             if not response_data['success']:
@@ -26,14 +25,15 @@ class ChatView(APIView):
             
             if response_data['target_language'] == 'all':
                 response_serializer = AllLanguagesResponseSerializer({
-                    'translated_text': response_data['translated_text'],
+                    'translations': response_data['translated_text'],
                     'conversational_response': response_data['conversational_response']
                 })
             else:
                 response_serializer = ChatResponseSerializer({
                     'is_translation_request': True,
                     'translated_text': response_data['translated_text'],
-                    'conversational_response': response_data['conversational_response']  # Only translated text
+                    'conversational_response': response_data['conversational_response'],
+                    'translation_result': response_data.get('translation_result')
                 })
             return Response(response_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
