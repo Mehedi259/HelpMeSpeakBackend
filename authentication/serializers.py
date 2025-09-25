@@ -102,9 +102,48 @@ class ResendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     purpose = serializers.ChoiceField(choices=['email_verification'])
 # serializers.py
+from rest_framework import serializers
+from .models import User, Profile
+import logging
+logger = logging.getLogger(__name__)
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='user.full_name', required=False)
+    gender = serializers.CharField(source='user.gender', required=False)
+    image = serializers.ImageField(required=False)  # ImageField ব্যবহার করুন
+
+    class Meta:
+        model = Profile
+        fields = ['full_name', 'phone', 'gender', 'image']
+
+    def validate_gender(self, value):
+        if value and value not in ['male', 'female', 'other']:
+            raise serializers.ValidationError("Gender must be 'male', 'female', or 'other'.")
+        return value
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+        full_name = user_data.get('full_name')
+        gender = user_data.get('gender')
+
+        logger.debug(f"Updating profile for user: {instance.user.email}, full_name: {full_name}, gender: {gender}, image: {validated_data.get('image')}")
+
+        if full_name:
+            instance.user.full_name = full_name
+        if gender:
+            instance.user.gender = gender
+        instance.user.save()
+
+        instance.phone = validated_data.get('phone', instance.phone)
+        if 'image' in validated_data:
+            instance.image = validated_data['image']
+        instance.save()
+        logger.info(f"Profile saved for user: {instance.user.email}")
+        return instance
+
 class UserProfileSerializer(serializers.ModelSerializer):
     email_verified = serializers.BooleanField(source='is_email_verified', read_only=True)
-    profile_image = serializers.SerializerMethodField()  # নতুন ফিল্ড
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -114,43 +153,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_profile_image(self, obj):
         try:
             profile = obj.profile
-            if profile.image:
-                return self.context['request'].build_absolute_uri(profile.image.url)
+            if profile.image and profile.image.name != 'profile_images/default_profile.png':
+                url = self.context['request'].build_absolute_uri(profile.image.url)
+                logger.debug(f"Profile image found for user: {obj.email}, URL: {url}")
+                return url
         except Profile.DoesNotExist:
-            pass
-        return self.context['request'].build_absolute_uri('/media/profile_images/default_profile.png')
-
-class ProfileUpdateSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(source='user.full_name', required=False)
-    gender = serializers.CharField(source='user.gender', required=False)
-    image = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Profile
-        fields = ['full_name', 'phone', 'gender', 'image']
-
-    def get_image(self, obj):
-        request = self.context.get('request')
-        if obj.image:
-            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
-        default_url = '/media/profile_images/default_profile.png'
-        return request.build_absolute_uri(default_url) if request else default_url
-
-    def update(self, instance, validated_data):
-        user_data = validated_data.pop('user', {})
-        full_name = user_data.get('full_name')
-        gender = user_data.get('gender')
-
-        if full_name:
-            instance.user.full_name = full_name
-        if gender:
-            instance.user.gender = gender
-        instance.user.save()
-
-        # Profile এর নিজের ফিল্ড update
-        instance.phone = validated_data.get('phone', instance.phone)
-        instance.save()
-        return instance
+            logger.warning(f"Profile does not exist for user: {obj.email}")
+        default_url = self.context['request'].build_absolute_uri('/media/profile_images/default_profile.png')
+        logger.debug(f"Returning default image for user: {obj.email}, URL: {default_url}")
+        return default_url
 
 
 
