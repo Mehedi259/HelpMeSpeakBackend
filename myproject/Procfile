@@ -1,1 +1,1 @@
-web: gunicorn helpmespeak.wsgi
+web: gunicorn myproject.wsgi
